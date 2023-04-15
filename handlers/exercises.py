@@ -16,17 +16,10 @@ router_1 = Router()
 
 PATH_TO_IMAGES = 'images/'
 
-# создаем соединение с базой данных
-engine = create_engine('postgresql://alex:remak4kko@127.0.0.1:5432/tgBot')
-
-# создаем объект сессии
-Session = sessionmaker(bind=engine)
-
-# создаем сессию
-
-
+from keyboards.pagination import pum
 @router_1.message(Command('list_drills'))
 async def show_drills(message: types.Message):
+    k = await pum()
     keyboard = await list_ex_kb()
     await message.answer('Выберите номер упражнения!', reply_markup=keyboard)
 
@@ -49,7 +42,7 @@ async def show_all_drills(message: types.Message):
         else:
             rules = ''
         print(img)
-        await message.answer(f'<b>Упражнение {exercise.ex_num}:</b><i>{description}</i>{rules}',
+        await message.answer(f'<b>Упражнение {exercise.id}:</b><i>{description}</i>{rules}',
                              parse_mode="HTML")
         await message.answer_photo(img)
 
@@ -57,9 +50,9 @@ async def show_all_drills(message: types.Message):
 @router_1.callback_query(Text(startswith="№"))
 async def show_drill(callback: CallbackQuery):
     async with async_db_session() as session:
-        ex_num = callback.data[1:]
-        print(ex_num)
-        exercise = await session.execute(select(Exercises).where(Exercises.ex_num == int(ex_num)))
+        ex_id = callback.data[1:]
+        print(ex_id)
+        exercise = await session.execute(select(Exercises).where(Exercises.id == int(ex_id)))
         exercise = exercise.first()
         print(exercise)
         exercise = exercise[0]
@@ -76,7 +69,7 @@ async def show_drill(callback: CallbackQuery):
             rules = f'\nПравила выполнения:\n{exercise.rules}'
         else:
             rules = ''
-        await callback.message.answer(f'<b>Упражнение {exercise.ex_num}:</b><i>{description}</i>{rules}',
+        await callback.message.answer(f'<b>Упражнение {exercise.id}:</b><i>{description}</i>{rules}',
                                       parse_mode="HTML")
         await callback.message.answer_photo(img)
         await callback.answer()

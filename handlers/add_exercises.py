@@ -1,8 +1,10 @@
-from aiogram import Router, F, Bot, Dispatcher
+from aiogram import Router, F, Bot
 from aiogram.filters import Command, Text
 from aiogram.fsm.context import FSMContext
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select, func, insert
 from sqlalchemy.orm import sessionmaker
+
+from db.connect import async_db_session
 from db.models import Exercises
 from keyboards.for_add_exercises import add_exercise, add_any, add_rules, add_description, check_ex, last_step
 from aiogram.types import CallbackQuery, Message, FSInputFile
@@ -11,20 +13,6 @@ from handlers.start_bot import make_start_message
 import os
 
 router_3 = Router()
-
-# создаем соединение с базой данных
-engine = create_engine('postgresql://alex:remak4kko@127.0.0.1:5432/tgBot')
-# создаем объект сессии
-Session = sessionmaker(bind=engine)
-# создаем сессию
-session = Session()
-
-
-def increment_generator(start=1):
-    num = start
-    while True:
-        yield num
-        num += 1
 
 
 class NewExercise(StatesGroup):
@@ -51,19 +39,17 @@ async def step_1(callback: CallbackQuery, state: FSMContext):
 
 @router_3.message(F.photo, NewExercise.input_photo)
 async def save_photo(message: Message, bot: Bot, state: FSMContext):
-    gen = increment_generator(start=1)
-    ex_new_num = next(gen)
-    print(ex_new_num)
-    while session.query(Exercises).filter_by(ex_num=ex_new_num).first():
-        ex_new_num = next(gen)
-        print(ex_new_num)
-    path = f"drill_{ex_new_num}.png"
+    async with async_db_session() as session:
+        result = await session.execute(func.max(Exercises.id))
+        ex_id = result.scalar() + 1
+    path = f"drill_{ex_id}.png"
+    print(path)
     await bot.download(
         message.photo[-1],
         destination=f"images/{path}"
     )
     await state.update_data(path=path)
-    await state.update_data(ex_num=ex_new_num)
+    await state.update_data(id=ex_id)
     await state.update_data(name="Упражнение")
     await message.answer("<b>Фото успешно сохранено!</b>\n<i>Переходи ко второму шагу!</i>",
                          parse_mode="HTML",
@@ -72,16 +58,12 @@ async def save_photo(message: Message, bot: Bot, state: FSMContext):
 
 
 @router_3.message(F.document, NewExercise.input_photo)
-async def invalid_document(message: Message, bot: Bot):
-    # await bot.download(
-    #     message.document,
-    #     destination=f"images/{message.document.file_id}.png"
-    # )
+async def invalid_document(message: Message):
     await message.answer(text="Пришлите фото!")
 
 
 @router_3.callback_query(Text(text="2 step"), NewExercise.input_rules)
-async def step_2(callback: CallbackQuery, state: FSMContext):
+async def step_2(callback: CallbackQuery):
     print('2 step')
     await callback.message.answer('<i>Напишите правила выполнения упражнения!</i>', reply_markup=add_any(),
                                   parse_mode="HTML")
@@ -98,7 +80,7 @@ async def save_rules(message: Message, state: FSMContext):
 
 
 @router_3.callback_query(Text(text="3 step"), NewExercise.input_decription)
-async def step_3(callback: CallbackQuery, state: FSMContext):
+async def step_3(callback: CallbackQuery):
     print('3 step')
     await callback.message.answer(
         '<i>Напишите описание(Какой сложности упражнение? Какие технические элементы развивает?)!</i>',
@@ -133,7 +115,7 @@ async def check(callback: CallbackQuery, state: FSMContext):
         rules = f'\nПравила выполнения:\n{user_exercise["rules"]}'
     else:
         rules = ''
-    await callback.message.answer(f'<b>Упражнение {user_exercise["ex_num"]}:</b><i>{description}</i>{rules}',
+    await callback.message.answer(f'<b>Упражнение {user_exercise["id"]}:</b><i>{description}</i>{rules}',
                                   parse_mode="HTML")
     await callback.message.answer_photo(img, reply_markup=last_step())
 
@@ -141,21 +123,24 @@ async def check(callback: CallbackQuery, state: FSMContext):
 @router_3.callback_query(Text(text="send"), NewExercise.last_step)
 async def save_exercise(callback: CallbackQuery, state: FSMContext):
     print('send to db')
+
     user_exercise = await state.get_data()
-    new_exercise = Exercises(
-        ex_num=user_exercise["ex_num"],
-        name=user_exercise['name'],
-        path=user_exercise['path'],
-        description=user_exercise['description'],
-        rules=user_exercise['rules']
-    )
-    session.add(new_exercise)
-    session.commit()
-    session.close()
-    await callback.answer(
-        text=f"Ваше упражнение сохранено!\nНомер упражнения: {user_exercise['ex_num']}",
-        show_alert=True
-    )
+    with async_db_session() as session:
+        await session.execute(insert(Exercises).values(
+            name=user_exercise['name'],
+            path=user_exercise['path'],
+            description=user_exercise['description'],
+            rules=user_exercise['rules']
+        ))
+        await session.commit()
+
+    async with async_db_session() as session:
+        result = await session.execute(func.max(Exercises.id))
+        ex_id = result.scalar()
+        await callback.answer(
+            text=f"Ваше упражнение сохранено!\nНомер упражнения: {ex_id}",
+            show_alert=True
+        )
     await state.clear()
     await callback.message.answer(make_start_message(callback), parse_mode="HTML")
 

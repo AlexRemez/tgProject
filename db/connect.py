@@ -4,8 +4,6 @@ from config_reader import config
 
 # параметры подключения к базе данных
 db_params = eval(config.db_params.get_secret_value())
-print(db_params)
-print(type(db_params))
 
 
 class Base(DeclarativeBase):
