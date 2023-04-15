@@ -1,14 +1,5 @@
-from aiogram import types
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from db.models import Exercises
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
-
-engine = create_engine('postgresql://alex:remak4kko@127.0.0.1:5432/tgBot')
-Session = sessionmaker(bind=engine)
-session = Session()
 
 
 def add_exercise() -> InlineKeyboardMarkup:
