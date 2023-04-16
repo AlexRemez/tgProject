@@ -1,6 +1,7 @@
 from random import randint
 
-from aiogram import Router, types, F
+import bot
+from aiogram import Router, types, F, Bot
 from aiogram.filters import Command, CommandObject, Text, callback_data
 
 from aiogram.types import FSInputFile, CallbackQuery
@@ -16,16 +17,18 @@ router_1 = Router()
 
 PATH_TO_IMAGES = 'images/'
 
-from keyboards.pagination import pum
+
 @router_1.message(Command('list_drills'))
-async def show_drills(message: types.Message):
-    k = await pum()
+async def show_drills(message: types.Message, bot: Bot):
     keyboard = await list_ex_kb()
+    await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
     await message.answer('Выберите номер упражнения!', reply_markup=keyboard)
+    # await bot.edit_message_reply_markup(chat_id=message.chat.id, message_id=message.message_id, reply_markup=None)
 
 
 @router_1.message(Command('show_all_drills'))
-async def show_all_drills(message: types.Message):
+async def show_all_drills(message: types.Message, bot: Bot):
+    await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
     async with async_db_session() as session:
         exercises = await session.execute(select(Exercises))
         exercises = exercises.fetchall()
@@ -49,6 +52,7 @@ async def show_all_drills(message: types.Message):
 
 @router_1.callback_query(Text(startswith="№"))
 async def show_drill(callback: CallbackQuery):
+    await callback.message.delete()
     async with async_db_session() as session:
         ex_id = callback.data[1:]
         print(ex_id)

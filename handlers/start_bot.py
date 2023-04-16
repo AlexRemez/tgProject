@@ -1,4 +1,4 @@
-from aiogram import Router, types
+from aiogram import Router, types, Bot
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
 
@@ -20,6 +20,7 @@ def make_start_message(query):
     /list_drills - Выбрать упражнение
     /show_all_drills - Все упражнения
     /add_exercise - Добавить свое упражнение
+    /join - Зарегистрироваться
     
     Если у Вас есть вопросы, пожалуйста, напишите мне @prog_Alkis!
     """
@@ -28,7 +29,10 @@ def make_start_message(query):
 
 # Хэндлер на команду /start
 @router_2.message(Command("start"))
-async def cmd_start(message: Message):
+async def cmd_start(message: Message, bot: Bot):
     print(message.from_user)
-
+    try:
+        await bot.delete_message()
+    except TypeError:
+        print("start message error")
     await message.answer(make_start_message(message), parse_mode="HTML")

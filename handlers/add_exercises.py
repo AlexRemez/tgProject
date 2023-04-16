@@ -1,8 +1,8 @@
 from aiogram import Router, F, Bot
 from aiogram.filters import Command, Text
 from aiogram.fsm.context import FSMContext
-from sqlalchemy import create_engine, select, func, insert
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import select, func, insert
+
 
 from db.connect import async_db_session
 from db.models import Exercises
@@ -18,19 +18,21 @@ router_3 = Router()
 class NewExercise(StatesGroup):
     input_photo = State()
     input_rules = State()
-    input_decription = State()
-    last_step = State()
+    input_description = State()
+    check = State()
 
 
 @router_3.message(Command("add_exercise"))
-async def cmd_start(message: Message):
+async def cmd_start(message: Message, bot: Bot):
+    await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
     await message.answer('<b>Добавьте свое упражнение выполнив 3 простых шага!</b>',
                          parse_mode="HTML",
                          reply_markup=add_exercise())
 
 
 @router_3.callback_query(Text(text="1 step"))
-async def step_1(callback: CallbackQuery, state: FSMContext):
+async def step_1(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    await bot.delete_message(chat_id=callback.message.chat.id, message_id=callback.message.message_id)
     print('1 step')
     await callback.message.answer('<i>Пришлите изображение упражнения!</i>', reply_markup=add_any(), parse_mode="HTML")
     await state.set_state(NewExercise.input_photo)
@@ -39,6 +41,8 @@ async def step_1(callback: CallbackQuery, state: FSMContext):
 
 @router_3.message(F.photo, NewExercise.input_photo)
 async def save_photo(message: Message, bot: Bot, state: FSMContext):
+    await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id - 1)
+    await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
     async with async_db_session() as session:
         result = await session.execute(func.max(Exercises.id))
         ex_id = result.scalar() + 1
@@ -63,7 +67,8 @@ async def invalid_document(message: Message):
 
 
 @router_3.callback_query(Text(text="2 step"), NewExercise.input_rules)
-async def step_2(callback: CallbackQuery):
+async def step_2(callback: CallbackQuery, bot: Bot):
+    await bot.delete_message(chat_id=callback.message.chat.id, message_id=callback.message.message_id)
     print('2 step')
     await callback.message.answer('<i>Напишите правила выполнения упражнения!</i>', reply_markup=add_any(),
                                   parse_mode="HTML")
@@ -71,16 +76,19 @@ async def step_2(callback: CallbackQuery):
 
 
 @router_3.message(Text, NewExercise.input_rules)
-async def save_rules(message: Message, state: FSMContext):
+async def save_rules(message: Message, state: FSMContext, bot: Bot):
+    await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id - 1)
+    await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
     print('2 step')
     await state.update_data(rules=message.text)
     await message.answer("<b>Правила сохранены!</b>\n<i>Переходи к 3 шагу!</i>", reply_markup=add_description(),
                          parse_mode="HTML")
-    await state.set_state(NewExercise.input_decription)
+    await state.set_state(NewExercise.input_description)
 
 
-@router_3.callback_query(Text(text="3 step"), NewExercise.input_decription)
-async def step_3(callback: CallbackQuery):
+@router_3.callback_query(Text(text="3 step"), NewExercise.input_description)
+async def step_3(callback: CallbackQuery, bot: Bot):
+    await bot.delete_message(chat_id=callback.message.chat.id, message_id=callback.message.message_id)
     print('3 step')
     await callback.message.answer(
         '<i>Напишите описание(Какой сложности упражнение? Какие технические элементы развивает?)!</i>',
@@ -89,18 +97,21 @@ async def step_3(callback: CallbackQuery):
     await callback.answer()
 
 
-@router_3.message(Text, NewExercise.input_decription)
-async def save_description(message: Message, state: FSMContext):
+@router_3.message(Text, NewExercise.input_description)
+async def save_description(message: Message, state: FSMContext, bot: Bot):
+    await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id - 1)
+    await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
     print('3 step')
     await state.update_data(description=message.text)
     await message.answer("<b>Описание сохранено!</b>\n<i>Теперь проверьте введенные данные.</i>",
                          reply_markup=check_ex(),
                          parse_mode="HTML")
-    await state.set_state(NewExercise.last_step)
+    await state.set_state(NewExercise.check)
 
 
-@router_3.callback_query(Text(text="check"), NewExercise.last_step)
-async def check(callback: CallbackQuery, state: FSMContext):
+@router_3.callback_query(Text(text="check"), NewExercise.check)
+async def check(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    await bot.delete_message(chat_id=callback.message.chat.id, message_id=callback.message.message_id)
     print('check')
     user_exercise = await state.get_data()
     await callback.message.answer("<b>Ваше упражнение:</b>", parse_mode="HTML")
@@ -120,12 +131,14 @@ async def check(callback: CallbackQuery, state: FSMContext):
     await callback.message.answer_photo(img, reply_markup=last_step())
 
 
-@router_3.callback_query(Text(text="send"), NewExercise.last_step)
-async def save_exercise(callback: CallbackQuery, state: FSMContext):
+@router_3.callback_query(Text(text="send"), NewExercise.check)
+async def save_exercise(callback: CallbackQuery, state: FSMContext, bot: Bot):
     print('send to db')
-
+    await bot.delete_message(chat_id=callback.message.chat.id, message_id=callback.message.message_id-2)
+    await bot.delete_message(chat_id=callback.message.chat.id, message_id=callback.message.message_id-1)
+    await bot.delete_message(chat_id=callback.message.chat.id, message_id=callback.message.message_id)
     user_exercise = await state.get_data()
-    with async_db_session() as session:
+    async with async_db_session() as session:
         await session.execute(insert(Exercises).values(
             name=user_exercise['name'],
             path=user_exercise['path'],
@@ -145,8 +158,8 @@ async def save_exercise(callback: CallbackQuery, state: FSMContext):
     await callback.message.answer(make_start_message(callback), parse_mode="HTML")
 
 
-@router_3.callback_query(Text(text="Cancel"))
-async def cancel(callback: CallbackQuery, state: FSMContext):
+@router_3.callback_query(Text(text="AddCancel"))
+async def cancel(callback: CallbackQuery, state: FSMContext, bot: Bot):
     print('cancel')
     user_exercise = await state.get_data()
     if "path" in user_exercise:
@@ -158,6 +171,11 @@ async def cancel(callback: CallbackQuery, state: FSMContext):
             print(f"Файл {file_path} успешно удален.")
         else:
             print(f"Файл {file_path} не существует.")
+    now_state = await state.get_state()
+    if now_state == NewExercise.check:
+        await bot.delete_message(chat_id=callback.message.chat.id, message_id=callback.message.message_id - 2)
+        await bot.delete_message(chat_id=callback.message.chat.id, message_id=callback.message.message_id - 1)
     await state.clear()
     await callback.message.answer(make_start_message(callback), parse_mode="HTML")
+    await bot.delete_message(chat_id=callback.message.chat.id, message_id=callback.message.message_id)
     await callback.answer()

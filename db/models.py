@@ -1,6 +1,6 @@
 import datetime
 
-from sqlalchemy import Column, Integer, String, Boolean, DateTime
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, BigInteger
 from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
@@ -20,9 +20,9 @@ class User(Base):
     __tablename__ = 'user'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    tg_id = Column(Integer, nullable=False)
+    tg_id = Column(BigInteger, nullable=False)
     first_name = Column(String(length=30))
     username = Column(String(length=30))
     telephone = Column(String(length=20))
     is_coach = Column(Boolean)
-    date_auth = Column(DateTime, default=datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S"))
+    date_auth = Column(String, default=str(datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")))
