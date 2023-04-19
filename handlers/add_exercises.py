@@ -32,9 +32,8 @@ async def cmd_start(message: Message, bot: Bot):
 
 @router_3.callback_query(Text(text="1 step"))
 async def step_1(callback: CallbackQuery, state: FSMContext, bot: Bot):
-    await bot.delete_message(chat_id=callback.message.chat.id, message_id=callback.message.message_id)
     print('1 step')
-    await callback.message.answer('<i>Пришлите изображение упражнения!</i>', reply_markup=add_any(), parse_mode="HTML")
+    await callback.message.edit_text('<i>Пришлите изображение упражнения!</i>', reply_markup=add_any(), parse_mode="HTML")
     await state.set_state(NewExercise.input_photo)
     await callback.answer()
 
@@ -43,9 +42,7 @@ async def step_1(callback: CallbackQuery, state: FSMContext, bot: Bot):
 async def save_photo(message: Message, bot: Bot, state: FSMContext):
     await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id - 1)
     await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
-    async with async_db_session() as session:
-        result = await session.execute(func.max(Exercises.id))
-        ex_id = result.scalar() + 1
+    ex_id = await Exercises.max_id() + 1
     path = f"drill_{ex_id}.png"
     print(path)
     await bot.download(
@@ -68,9 +65,8 @@ async def invalid_document(message: Message):
 
 @router_3.callback_query(Text(text="2 step"), NewExercise.input_rules)
 async def step_2(callback: CallbackQuery, bot: Bot):
-    await bot.delete_message(chat_id=callback.message.chat.id, message_id=callback.message.message_id)
     print('2 step')
-    await callback.message.answer('<i>Напишите правила выполнения упражнения!</i>', reply_markup=add_any(),
+    await callback.message.edit_text('<i>Напишите правила выполнения упражнения!</i>', reply_markup=add_any(),
                                   parse_mode="HTML")
     await callback.answer()
 
@@ -88,9 +84,8 @@ async def save_rules(message: Message, state: FSMContext, bot: Bot):
 
 @router_3.callback_query(Text(text="3 step"), NewExercise.input_description)
 async def step_3(callback: CallbackQuery, bot: Bot):
-    await bot.delete_message(chat_id=callback.message.chat.id, message_id=callback.message.message_id)
     print('3 step')
-    await callback.message.answer(
+    await callback.message.edit_text(
         '<i>Напишите описание(Какой сложности упражнение? Какие технические элементы развивает?)!</i>',
         reply_markup=add_any(),
         parse_mode="HTML")
@@ -134,26 +129,23 @@ async def check(callback: CallbackQuery, state: FSMContext, bot: Bot):
 @router_3.callback_query(Text(text="send"), NewExercise.check)
 async def save_exercise(callback: CallbackQuery, state: FSMContext, bot: Bot):
     print('send to db')
+    user_exercise = await state.get_data()
+    print(user_exercise)
+    await Exercises.create(
+        name=user_exercise['name'],
+        path=user_exercise['path'],
+        description=user_exercise['description'],
+        rules=user_exercise['rules']
+    )
+
+    ex_id = await Exercises.max_id()
+    await callback.answer(
+        text=f"Ваше упражнение сохранено!\nНомер упражнения: {ex_id}",
+        show_alert=True
+    )
     await bot.delete_message(chat_id=callback.message.chat.id, message_id=callback.message.message_id-2)
     await bot.delete_message(chat_id=callback.message.chat.id, message_id=callback.message.message_id-1)
     await bot.delete_message(chat_id=callback.message.chat.id, message_id=callback.message.message_id)
-    user_exercise = await state.get_data()
-    async with async_db_session() as session:
-        await session.execute(insert(Exercises).values(
-            name=user_exercise['name'],
-            path=user_exercise['path'],
-            description=user_exercise['description'],
-            rules=user_exercise['rules']
-        ))
-        await session.commit()
-
-    async with async_db_session() as session:
-        result = await session.execute(func.max(Exercises.id))
-        ex_id = result.scalar()
-        await callback.answer(
-            text=f"Ваше упражнение сохранено!\nНомер упражнения: {ex_id}",
-            show_alert=True
-        )
     await state.clear()
     await callback.message.answer(make_start_message(callback), parse_mode="HTML")
 

@@ -1,7 +1,7 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, KeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
-from db.connect import async_db_session
-from db.models import User
+
+from db.models import Coaches
 
 
 def auth() -> InlineKeyboardMarkup:
@@ -31,4 +31,13 @@ def confirm() -> InlineKeyboardMarkup:
     kb.add(InlineKeyboardButton(text="Всё верно", callback_data="good"))
     kb.add(InlineKeyboardButton(text="Что-то не так", callback_data="AuthCancel"))
     kb.adjust(1)
+    return kb.as_markup(resize_keyboard=True)
+
+
+async def coach_list() -> InlineKeyboardMarkup:
+    kb = InlineKeyboardBuilder()
+    coaches = await Coaches.all()
+    for coach in coaches:
+        kb.add(InlineKeyboardButton(text=f"{coach.first_name}", callback_data=str(coach.id)))
+    kb.adjust(2)
     return kb.as_markup(resize_keyboard=True)

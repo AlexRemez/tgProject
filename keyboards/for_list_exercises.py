@@ -1,21 +1,25 @@
-from aiogram import types
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from db.models import Exercises
-from sqlalchemy import create_engine, select
-from sqlalchemy.orm import sessionmaker
-from math import ceil
+from db.models import Exercises, Tasks, Students
+from sqlalchemy import select
 from db.connect import async_db_session
 
 
 async def list_ex_kb() -> InlineKeyboardMarkup:
-    async with async_db_session() as session:
-        exercises_num = await session.execute(select(Exercises.id))
-        ex_num_list = exercises_num.fetchall()
-
+    ex_num_list = await Exercises.all()
     kb = InlineKeyboardBuilder()
     for ex_num in ex_num_list:
-        kb.add(InlineKeyboardButton(text="№" + str(ex_num[0]), callback_data="№" + str(ex_num[0])))
+        ex_num = str(ex_num.id)
+        kb.add(InlineKeyboardButton(text="№" + str(ex_num), callback_data="№" + str(ex_num)))
     kb.adjust(4)
     return kb.as_markup(resize_keyboard=True)
 
+
+async def list_ex_tasks(tasks: Tasks) -> InlineKeyboardMarkup:
+    kb = InlineKeyboardBuilder()
+    for task in tasks:
+        task: Tasks
+        kb.add(InlineKeyboardButton(text="№" + str(task.exercise_id), callback_data="№" + str(task.exercise_id)))
+    kb.adjust(5)
+    kb.row(InlineKeyboardButton(text="Назад", callback_data="back"))
+    return kb.as_markup(resize_keyboard=True)

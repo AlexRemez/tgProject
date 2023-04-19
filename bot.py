@@ -2,7 +2,7 @@ import asyncio
 import logging
 from aiogram import Bot, Dispatcher
 from config_reader import config
-from handlers import start_bot, exercises, add_exercises, authorization
+from handlers import start_bot, exercises, add_exercises, authorization, profile
 
 
 def add_routes(dispatcher: Dispatcher):
@@ -10,6 +10,7 @@ def add_routes(dispatcher: Dispatcher):
     dispatcher.include_router(start_bot.router_2)
     dispatcher.include_router(add_exercises.router_3)
     dispatcher.include_router(authorization.auth_router)
+    dispatcher.include_router(profile.profile_router)
 
 
 # Запуск процесса поллинга новых апдейтов
