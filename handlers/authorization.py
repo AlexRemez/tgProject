@@ -45,6 +45,7 @@ async def join(callback: CallbackQuery,state: FSMContext, bot: Bot):
         await state.update_data(username=callback.from_user.username)
     else:
         await state.update_data(username="")
+    await callback.message.delete()
     await callback.message.answer("<b>Отправьте нам свой номер телефона для обратной связи</b>", parse_mode="HTML", reply_markup=telephone())
     await callback.answer()
 
@@ -54,14 +55,22 @@ async def save_contact(message: Message, state: FSMContext, bot: Bot):
     if message.contact:
         await message.answer(text="<b>Номер сохранён!</b>", parse_mode="HTML", reply_markup=ReplyKeyboardRemove())
         phone_number = message.contact.phone_number
-        await state.update_data(telephone=phone_number)
-        await message.answer("<b>Выберите ваш статус:</b>", parse_mode="HTML", reply_markup=status())
+    elif message.text == "Пропустить":
+        phone_number = "Неизвестный"
     else:
-        await message.edit_text("<b>Нажмите на кнопку 'Отправить номер'!</b>", parse_mode="HTML", reply_markup=telephone())
+        await message.edit_text("<b>Выберите действие!</b>", parse_mode="HTML", reply_markup=telephone())
+    await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id - 1)
+    await message.delete()
+    await state.update_data(telephone=phone_number)
+    await message.answer("<b>Выберите ваш статус:</b>", parse_mode="HTML", reply_markup=status())
 
 
 @auth_router.callback_query(Text(startswith="status"), Auth.auth_state)
 async def confirm_auth(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    data = await state.get_data()
+    phone: str = data["telephone"]
+    if phone.isdigit():
+        await bot.delete_message(chat_id=callback.message.chat.id, message_id=callback.message.message_id - 1)
     status = callback.data.split(".")[1]
     print(status)
     if status == "coach":

@@ -15,6 +15,7 @@ def auth() -> InlineKeyboardMarkup:
 def telephone() -> ReplyKeyboardBuilder:
     kb = ReplyKeyboardBuilder()
     kb.add(KeyboardButton(text="Отправить номер", request_contact=True))
+    kb.add(KeyboardButton(text="Пропустить"))
     return kb.as_markup(resize_keyboard=True, one_time_keyboard=True, is_persistent=True)
 
 

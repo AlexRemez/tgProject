@@ -42,9 +42,10 @@ class ModelAdmin:
         """
 
         async with async_db_session() as session:
+            cls = type(self)
             update_stmt = (
-                update(Students)
-                .where(Students.id == self.id)
+                update(cls)
+                .where(cls.id == self.id)
                 .values(**kwargs)
             )
             await session.execute(update_stmt)
@@ -164,13 +165,14 @@ class Students(Base, ModelAdmin):
     coach_id = Column(Integer, ForeignKey("coaches.id"))
     coach = relationship("Coaches", back_populates="students", lazy=False)
 
-    tasks = relationship("Tasks", back_populates="student")
+    tasks = relationship("Tasks", back_populates="student", cascade="all, delete")
 
 
 class Tasks(Base, ModelAdmin):
     __tablename__ = 'tasks'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    date_registered = Column(String, default=str(datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")))
     student_status = Column(Boolean, default=False)
     date_update_student = Column(String)
 
@@ -180,7 +182,7 @@ class Tasks(Base, ModelAdmin):
     exercise_id = Column(Integer, ForeignKey("exercises.id"))
     exercise = relationship("Exercises", back_populates="exercises")
 
-    student_id = Column(Integer, ForeignKey("students.id"))
+    student_id = Column(Integer, ForeignKey("students.id", ondelete="CASCADE"))
     student = relationship("Students", back_populates="tasks")
 
 
