@@ -40,7 +40,6 @@ async def step_1(callback: CallbackQuery, state: FSMContext, bot: Bot):
 
 @router_3.message(F.photo, NewExercise.input_photo)
 async def save_photo(message: Message, bot: Bot, state: FSMContext):
-    await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id - 1)
     await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
     ex_id = await Exercises.max_id() + 1
     path = f"drill_{ex_id}.png"

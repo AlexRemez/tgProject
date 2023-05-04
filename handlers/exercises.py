@@ -1,18 +1,11 @@
-from random import randint
-
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 
-import bot
-from aiogram import Router, types, F, Bot
-from aiogram.filters import Command, CommandObject, Text, callback_data
+from aiogram import Router, types, Bot
+from aiogram.filters import Command, Text
 
 from aiogram.types import FSInputFile, CallbackQuery
-from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from sqlalchemy import create_engine, select
-from sqlalchemy.orm import sessionmaker
-from db.connect import async_db_session
 from db.models import Exercises
 from handlers.profile import Profile, save_previous
 from keyboards.for_list_exercises import list_ex_kb

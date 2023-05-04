@@ -13,6 +13,7 @@ def coach_services() -> InlineKeyboardMarkup:
         InlineKeyboardButton(text="🆕Добавить упражнение🆕", callback_data="add_exercise")
     )
     kb.row(InlineKeyboardButton(text="🗒Список задач🗒", callback_data="tasks"))
+    kb.row(InlineKeyboardButton(text="❌Удалить аккаунт❌", callback_data="confirm_delete"))
     return kb.as_markup(resize_keyboard=True)
 
 

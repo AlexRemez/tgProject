@@ -355,7 +355,7 @@ async def student_confirm(callback: CallbackQuery, state: FSMContext, bot: Bot):
     await state.clear()
 
 
-@profile_router.callback_query(Text(text="confirm_delete"), Profile.student_profile)
+@profile_router.callback_query(Text(text="confirm_delete"))
 async def confirm_delete_account(callback: CallbackQuery, state: FSMContext):
     await save_previous(state, callback, Profile.student_profile)
     text = f"<b>ВЫ УВЕРЕНЫ?</b>" \
@@ -364,16 +364,22 @@ async def confirm_delete_account(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(text=text, parse_mode="HTML", reply_markup=delete_account_kb())
 
 
-@profile_router.callback_query(Text(text="delete_account"), Profile.student_profile)
+@profile_router.callback_query(Text(text="delete_account"))
 async def delete_account(callback: CallbackQuery, state: FSMContext):
     student = await Students.get(tg_id=callback.from_user.id)
-    await student.delete()
+    coach = await Coaches.get(tg_id=callback.from_user.id)
+    if student:
+        await student.delete()
+        print("Аккаунт студента удален!")
+    elif coach:
+        await coach.delete()
+        print("Аккаунт тренера удален!")
     await state.clear()
     await callback.answer("Ваш аккаунт удалён!", show_alert=True)
     await callback.message.delete()
 
 
-@profile_router.callback_query(Text(text="del_cancel"), Profile.student_profile)
+@profile_router.callback_query(Text(text="del_cancel"))
 async def cancel_delete(callback: CallbackQuery, state: FSMContext):
     await state.clear()
     await callback.message.delete()

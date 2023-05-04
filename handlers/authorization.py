@@ -32,6 +32,7 @@ async def start_auth(message: Message, bot: Bot, state: FSMContext):
             text="Вы уже зарегистрированы!",
             disable_notification=False
         )
+        await state.clear()
     else:
         await message.answer("<b>Вы хотите зарегистрироваться?</b>", parse_mode="HTML", reply_markup=auth())
 
@@ -52,17 +53,22 @@ async def join(callback: CallbackQuery,state: FSMContext, bot: Bot):
 
 @auth_router.message(Text, Auth.auth_state)
 async def save_contact(message: Message, state: FSMContext, bot: Bot):
+    flag = False
     if message.contact:
         await message.answer(text="<b>Номер сохранён!</b>", parse_mode="HTML", reply_markup=ReplyKeyboardRemove())
         phone_number = message.contact.phone_number
+        flag = True
     elif message.text == "Пропустить":
         phone_number = "Неизвестный"
+        flag = True
+    if flag:
+        await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id - 1)
+        await message.delete()
+        await state.update_data(telephone=phone_number)
+        await message.answer("<b>Выберите ваш статус:</b>", parse_mode="HTML", reply_markup=status())
     else:
-        await message.edit_text("<b>Выберите действие!</b>", parse_mode="HTML", reply_markup=telephone())
-    await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id - 1)
-    await message.delete()
-    await state.update_data(telephone=phone_number)
-    await message.answer("<b>Выберите ваш статус:</b>", parse_mode="HTML", reply_markup=status())
+        await message.answer("<b>Выберите действие!</b>", parse_mode="HTML", reply_markup=telephone())
+
 
 
 @auth_router.callback_query(Text(startswith="status"), Auth.auth_state)
