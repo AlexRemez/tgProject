@@ -19,3 +19,19 @@
 * alembic
 * aiohttp
 
+<img src="images/about.png" width="500" />
+
+
+
+### Для работы необходимо указать следующие переменные окружения
+
+    BOT_TOKEN = example_token
+    
+    # for database    
+    DB_PARAMS = {'user': 'EXAMPLE', 'password': 'EXAMPLE', 'host': '127.0.0.1', 'database': 'tgBot'}
+
+## Старт
+
+Запуск бота:
+```shell
+python bot.py
