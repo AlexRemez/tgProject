@@ -14,7 +14,6 @@
 * asyncio
 * SQLAlchemy
 * asyncpg
-* psycopg2
 * pydantic
 * alembic
 * aiohttp
