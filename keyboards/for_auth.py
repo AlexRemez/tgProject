@@ -41,4 +41,5 @@ async def coach_list() -> InlineKeyboardMarkup:
     for coach in coaches:
         kb.add(InlineKeyboardButton(text=f"{coach.first_name}", callback_data=str(coach.id)))
     kb.adjust(2)
+    kb.row(InlineKeyboardButton(text="↩️Назад", callback_data="profile"))
     return kb.as_markup(resize_keyboard=True)

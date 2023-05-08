@@ -9,7 +9,8 @@ from aiogram.fsm.context import FSMContext
 
 from keyboards.for_auth import auth, telephone, status, confirm, coach_list
 from handlers.start_bot import make_start_message
-
+from keyboards.for_menu import main_menu_kb
+from keyboards.for_start_bot import main_buttons_kb
 
 auth_router = Router()
 
@@ -17,28 +18,12 @@ auth_router = Router()
 class Auth(StatesGroup):
     auth_state = State()
     choosing_coach = State()
-
-
-@auth_router.message(Command("join"))
-async def start_auth(message: Message, bot: Bot, state: FSMContext):
-    await state.set_state(Auth.auth_state)
-    await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
-    id_tg = message.from_user.id
-    coach = await Coaches.get(tg_id=id_tg)
-    student = await Students.get(tg_id=id_tg)
-    if coach or student:
-        await bot.send_message(
-            chat_id=message.chat.id,
-            text="Вы уже зарегистрированы!",
-            disable_notification=False
-        )
-        await state.clear()
-    else:
-        await message.answer("<b>Вы хотите зарегистрироваться?</b>", parse_mode="HTML", reply_markup=auth())
+    change_coach = State()
 
 
 @auth_router.callback_query(Text(text="auth"))
-async def join(callback: CallbackQuery,state: FSMContext, bot: Bot):
+async def join(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    await state.set_state(Auth.auth_state)
     await state.update_data(tg_id=callback.from_user.id)
     await state.update_data(first_name=callback.from_user.first_name)
 
@@ -68,7 +53,6 @@ async def save_contact(message: Message, state: FSMContext, bot: Bot):
         await message.answer("<b>Выберите ваш статус:</b>", parse_mode="HTML", reply_markup=status())
     else:
         await message.answer("<b>Выберите действие!</b>", parse_mode="HTML", reply_markup=telephone())
-
 
 
 @auth_router.callback_query(Text(startswith="status"), Auth.auth_state)
@@ -118,9 +102,10 @@ async def save_user(callback: CallbackQuery, state: FSMContext, bot: Bot):
             username=user['username'],
             telephone=user['telephone'],
         )
-    await bot.delete_message(chat_id=callback.message.chat.id, message_id=callback.message.message_id)
     await state.clear()
     await callback.answer(text="Вы успешно зарегистрировались!", show_alert=True)
+    await bot.delete_message(chat_id=callback.message.chat.id, message_id=callback.message.message_id)
+    await callback.message.answer(make_start_message(callback), parse_mode="HTML", reply_markup=main_buttons_kb())
 
 
 @auth_router.callback_query(Text(text="AuthCancel"), Auth.auth_state)
@@ -128,12 +113,12 @@ async def cancel(callback: CallbackQuery, bot: Bot, state: FSMContext):
     await bot.delete_message(chat_id=callback.message.chat.id, message_id=callback.message.message_id)
     await state.clear()
     await callback.answer(text="Ошибка авторизации", show_alert=True)
-    await callback.message.answer(make_start_message(callback), parse_mode="HTML")
+    await callback.message.answer(make_start_message(callback), parse_mode="HTML", reply_markup=main_buttons_kb())
 
 
 @auth_router.message(Command("choose_coach"))
 async def choose_coach(message: Message, bot: Bot, state: FSMContext):
-    await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+    await message.delete()
     await state.set_state(Auth.choosing_coach)
     keyboard = await coach_list()
     id_tg = message.from_user.id
@@ -142,12 +127,48 @@ async def choose_coach(message: Message, bot: Bot, state: FSMContext):
     if student:
         if student.coach_id:
             await message.answer("<b>У вас есть тренер!</b>", parse_mode="HTML")
+            await state.clear()
         else:
             await message.answer(text="<b>Выберите тренера:</b>", parse_mode="HTML", reply_markup=keyboard)
     elif coach:
         await message.answer("<b>Вы являетесь тренером!</b>", parse_mode="HTML")
+        await state.clear()
     else:
         await message.answer("<b>Вы не зарегистрированы!</b>", parse_mode="HTML")
+        await state.clear()
+
+
+@auth_router.callback_query(Text(text="choose_coach"))
+async def choose_coach(callback: CallbackQuery, state: FSMContext):
+    # await callback.message.delete()
+    await state.set_state(Auth.choosing_coach)
+    id_tg = callback.from_user.id
+    student = await Students.get(tg_id=id_tg)
+    coach = await Coaches.get(tg_id=id_tg)
+    if student:
+        if student.coach_id:
+            await callback.answer("У вас есть тренер!")
+            await state.clear()
+        else:
+            keyboard = await coach_list()
+            await callback.message.edit_text(text="<b>Выберите тренера:</b>",
+                                             parse_mode="HTML",
+                                             reply_markup=keyboard)
+            await callback.answer()
+    elif coach:
+        await callback.answer("Вы являетесь тренером!")
+        await state.clear()
+    else:
+        await callback.answer("Вы не зарегистрированы!")
+        await state.clear()
+
+
+@auth_router.callback_query(Text(text="delete_coach"))
+async def delete_coach(callback: CallbackQuery, state: FSMContext):
+    id_tg = callback.from_user.id
+    student = await Students.get(tg_id=id_tg)
+    await student.update(coach_id=None)
+    await callback.answer(text="Тренер удалён!", show_alert=True)
 
 
 @auth_router.callback_query(Auth.choosing_coach)

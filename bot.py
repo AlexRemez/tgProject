@@ -2,10 +2,11 @@ import asyncio
 import logging
 from aiogram import Bot, Dispatcher
 from config_reader import config
-from handlers import start_bot, exercises, add_exercises, authorization, profile
+from handlers import start_bot, exercises, add_exercises, authorization, profile, menu
 
 
 def add_routes(dispatcher: Dispatcher):
+    dispatcher.include_router(menu.menu_router)
     dispatcher.include_router(exercises.router_1)
     dispatcher.include_router(start_bot.router_2)
     dispatcher.include_router(add_exercises.router_3)

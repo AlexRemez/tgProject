@@ -40,6 +40,7 @@ async def step_1(callback: CallbackQuery, state: FSMContext, bot: Bot):
 
 @router_3.message(F.photo, NewExercise.input_photo)
 async def save_photo(message: Message, bot: Bot, state: FSMContext):
+    await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id - 1)
     await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
     ex_id = await Exercises.max_id() + 1
     path = f"drill_{ex_id}.png"
@@ -167,6 +168,6 @@ async def cancel(callback: CallbackQuery, state: FSMContext, bot: Bot):
         await bot.delete_message(chat_id=callback.message.chat.id, message_id=callback.message.message_id - 2)
         await bot.delete_message(chat_id=callback.message.chat.id, message_id=callback.message.message_id - 1)
     await state.clear()
-    await callback.message.answer(make_start_message(callback), parse_mode="HTML")
+    # await callback.message.answer(make_start_message(callback), parse_mode="HTML")
     await bot.delete_message(chat_id=callback.message.chat.id, message_id=callback.message.message_id)
     await callback.answer()

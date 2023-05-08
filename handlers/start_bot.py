@@ -2,6 +2,8 @@ from aiogram import Router, types, Bot
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
 
+from keyboards.for_start_bot import main_buttons_kb
+
 router_2 = Router()
 
 
@@ -26,7 +28,7 @@ def make_start_message(query):
 async def cmd_start(message: Message, bot: Bot):
     print(message.from_user)
     try:
-        await bot.delete_message()
+        await message.delete()
     except TypeError:
         print("start message error")
-    await message.answer(make_start_message(message), parse_mode="HTML")
+    await message.answer(make_start_message(message), parse_mode="HTML", reply_markup=main_buttons_kb())
