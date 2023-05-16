@@ -21,9 +21,9 @@ async def list_ex_tasks(tasks: Tasks, previous_step) -> InlineKeyboardMarkup:
     for task in tasks:
         num += 1
         task: Tasks
-        kb.add(InlineKeyboardButton(text="№" + str(num), callback_data="№" + str(task.id)))
+        kb.add(InlineKeyboardButton(text="№" + str(task.exercise_id), callback_data="№" + str(task.id)))
     kb.adjust(5)
-    kb.row(InlineKeyboardButton(text="Назад", callback_data=previous_step))
+    kb.row(InlineKeyboardButton(text="↩️Назад", callback_data=previous_step))
     return kb.as_markup(resize_keyboard=True)
 
 
@@ -34,7 +34,7 @@ async def student_confirm_task_kb(student: Students) -> InlineKeyboardMarkup:
     for task in tasks:
         num += 1
         task: Tasks
-        kb.add(InlineKeyboardButton(text="№" + str(num), callback_data="№" + str(task.id)))
+        kb.add(InlineKeyboardButton(text="№" + str(task.exercise_id), callback_data="№" + str(task.id)))
     kb.adjust(5)
-    kb.row(InlineKeyboardButton(text="Назад", callback_data="student_tasks"))
+    kb.row(InlineKeyboardButton(text="↩️Назад", callback_data="student_tasks"))
     return kb.as_markup(resize_keyboard=True)

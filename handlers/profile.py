@@ -1,18 +1,18 @@
 import datetime
 
-from aiogram import Router, Bot, F
+from aiogram import Router, Bot
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove, Update
-from aiogram.filters import Command, Text
+from aiogram.types import Message, CallbackQuery
+from aiogram.filters import Text
 
 from db.models import Coaches, Students, Tasks
 from filters.in_range_ex import ValidExerciseFilter
 from keyboards.for_add_exercises import add_exercise
 from keyboards.for_list_exercises import list_ex_tasks, student_confirm_task_kb
-from keyboards.for_profile import student_list_kb, coach_services, back, coach_tasks_list_kb, add_task, \
-    student_services, student_tasks_list_kb, delete_account_kb, my_coach_kb
+from keyboards.for_profile import student_list_kb, back, coach_tasks_list_kb, add_task, \
+    student_tasks_list_kb, delete_account_kb, my_coach_kb, task_notification_kb
 
 profile_router = Router()
 
@@ -57,11 +57,11 @@ async def student_info(callback: CallbackQuery, state: FSMContext):
     student_profile = await Students.get(id=int(callback.data[1:]))
     await callback.message.edit_text(
         text=f"\
-            <b>!Профиль ученика!</b>\
-            \nНикнейм: {student_profile.first_name}\
-            \nНомер телефона: {student_profile.telephone}\
-            \nТренер: {student_profile.coach.first_name}\
-            \nДата регистрации профиля: {student_profile.date_auth}\
+            👤<b>Профиль ученика</b>👤\
+            \n⚪️Никнейм: {student_profile.first_name}\
+            \n📱Номер телефона: {student_profile.telephone}\
+            \n⚫️Тренер: {student_profile.coach.first_name}\
+            \n📅Дата регистрации профиля: {student_profile.date_auth}\
             ",
         parse_mode="HTML",
         reply_markup=back("my_students")
@@ -107,8 +107,9 @@ async def add_ex(callback: CallbackQuery, state: FSMContext, bot: Bot):
 
 @profile_router.callback_query(Text("coach_tasks"))
 async def tasks_list(callback: CallbackQuery, state: FSMContext):
-    await callback.message.edit_reply_markup(inline_message_id=callback.inline_message_id,
-                                             reply_markup=coach_tasks_list_kb())
+    await callback.message.edit_text(text="📂<b>Фильтр задач</b>📂",
+                                     parse_mode="HTML",
+                                     reply_markup=coach_tasks_list_kb())
 
 
 @profile_router.callback_query(Text("coach_completed_tasks"))
@@ -171,19 +172,28 @@ async def add_task_2(callback: CallbackQuery, state: FSMContext):
 
 @profile_router.message(Profile.add_task, ValidExerciseFilter())
 async def add_confirm(message: Message, state: FSMContext, bot: Bot):
-    print("add_confirm")
     data = await state.get_data()
-    print(message.text)
-    await Tasks.create(
-        exercise_id=int(message.text),
-        student_id=data['student_id']
-    )
-    await state.clear()
-    await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id - 1)
-    await message.delete()
-    await message.answer(text="<b>Задача добавлена!</b>",
-                         parse_mode="HTML",
-                         reply_markup=back(previous_step="coach_process_tasks"))
+    if await Tasks.get(student_id=data['student_id'], exercise_id=int(message.text), coach_status=False):
+        await message.answer("<b>❌Ученик уже делает это упражнение!</b>", parse_mode="HTML")
+    else:
+        await Tasks.create(
+            exercise_id=int(message.text),
+            student_id=data['student_id']
+        )
+        await message.answer(text="<b>Задача добавлена!</b>",
+                             parse_mode="HTML",
+                             reply_markup=back(previous_step="coach_process_tasks"))
+        student = await Students.get(id=data['student_id'])
+        await bot.send_message(chat_id=student.tg_id,
+                               text="💬<b>У вас новая задача</b>💬",
+                               parse_mode="HTML",
+                               reply_markup=task_notification_kb())
+        try:
+            await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id - 1)
+        except TelegramBadRequest:
+            print("Error")
+        await message.delete()
+        await state.clear()
 
 
 @profile_router.callback_query(Text("coach_waiting_confirm"))
@@ -251,10 +261,10 @@ async def my_coach(callback: CallbackQuery, state: FSMContext):
     if coach:
         await callback.message.edit_text(
             text=f"\
-                <b>!Профиль тренера!</b>\
-                \nНикнейм: {coach.first_name}\
-                \nНомер телефона: {coach.telephone}\
-                \nДата регистрации профиля: {coach.date_auth}\
+                👤<b>Профиль тренера</b>👤\
+                \n⚫️Никнейм: {coach.first_name}\
+                \n📱Номер телефона: {coach.telephone}\
+                \n📅Дата регистрации профиля: {coach.date_auth}\
                 ",
             parse_mode="HTML",
             reply_markup=my_coach_kb(previous_step="profile")
@@ -269,8 +279,9 @@ async def my_coach(callback: CallbackQuery, state: FSMContext):
 
 @profile_router.callback_query(Text("student_tasks"))
 async def tasks_list(callback: CallbackQuery, state: FSMContext):
-    await callback.message.edit_reply_markup(inline_message_id=callback.inline_message_id,
-                                             reply_markup=student_tasks_list_kb())
+    await callback.message.edit_text(text="📂<b>Фильтр задач</b>📂",
+                                     parse_mode="HTML",
+                                     reply_markup=student_tasks_list_kb())
 
 
 @profile_router.callback_query(Text("student_completed_tasks"))
@@ -282,7 +293,7 @@ async def completed_tasks(callback: CallbackQuery, state: FSMContext):
     for task in tasks:
         task: Tasks
         num += 1
-        tasks_message += f"{num}) №{task.id} | Дата выполнения: {task.date_update_student}\n"
+        tasks_message += f"{num}) №{task.exercise_id} | Дата выполнения: {task.date_update_student}\n"
     await callback.message.edit_text(text=tasks_message, parse_mode="HTML", reply_markup=back("student_tasks"))
 
 

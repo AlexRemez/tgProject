@@ -44,64 +44,70 @@ async def student_list_kb(coach: Coaches, previous_step) -> InlineKeyboardMarkup
         student: Students
         kb.add(InlineKeyboardButton(text=f"{student.first_name}", callback_data=spliter + str(student.id)))
     kb.adjust(4)
-    kb.row(InlineKeyboardButton(text="Назад", callback_data=previous_step))
+    kb.row(InlineKeyboardButton(text="↩️Назад", callback_data=previous_step))
     return kb.as_markup(resize_keyboard=True)
 
 
 def coach_tasks_list_kb() -> InlineKeyboardMarkup:
     kb = InlineKeyboardBuilder()
-    kb.row(InlineKeyboardButton(text="Выполненные задачи", callback_data="coach_completed_tasks"))
-    kb.row(InlineKeyboardButton(text="В процессе", callback_data="coach_process_tasks"),
-           InlineKeyboardButton(text="Ожидают подтверждения", callback_data="coach_waiting_confirm"))
-    kb.row(InlineKeyboardButton(text="Назад", callback_data="profile"))
+    kb.row(InlineKeyboardButton(text="✅Выполненные задачи✅", callback_data="coach_completed_tasks"))
+    kb.row(InlineKeyboardButton(text="⏳В процессе⏳", callback_data="coach_process_tasks"),
+           InlineKeyboardButton(text="☑️Ожидают подтверждения☑️", callback_data="coach_waiting_confirm"))
+    kb.row(InlineKeyboardButton(text="↩️Назад", callback_data="profile"))
     return kb.as_markup(resize_keyboard=True)
 
 
 def student_tasks_list_kb() -> InlineKeyboardMarkup:
     kb = InlineKeyboardBuilder()
     kb.row(
-        InlineKeyboardButton(text="Выполненные задачи", callback_data="student_completed_tasks"),
-        InlineKeyboardButton(text="В процессе", callback_data="student_process_tasks"))
-    kb.row(InlineKeyboardButton(text="Назад", callback_data="profile"))
+        InlineKeyboardButton(text="✅Выполненные задачи✅", callback_data="student_completed_tasks"),
+        InlineKeyboardButton(text="⏳В процессе⏳", callback_data="student_process_tasks"))
+    kb.row(InlineKeyboardButton(text="↩️Назад", callback_data="profile"))
     return kb.as_markup(resize_keyboard=True)
 
 
 def add_task() -> InlineKeyboardMarkup:
     kb = InlineKeyboardBuilder()
     kb.row(InlineKeyboardButton(text="🆕Добавить задачу🆕", callback_data="add_task"))
-    kb.row(InlineKeyboardButton(text="Назад", callback_data="coach_tasks"))
+    kb.row(InlineKeyboardButton(text="↩️Назад", callback_data="coach_tasks"))
     return kb.as_markup(resize_keyboard=True)
 
 
 def confirm_kb(previous_step) -> InlineKeyboardMarkup:
     kb = InlineKeyboardBuilder()
-    kb.row(InlineKeyboardButton(text="Подтвердить", callback_data="confirm"))
-    kb.row(InlineKeyboardButton(text="Назад", callback_data=previous_step))
+    kb.row(InlineKeyboardButton(text="✅Подтвердить✅", callback_data="confirm"))
+    kb.row(InlineKeyboardButton(text="↩️Назад", callback_data=previous_step))
     return kb.as_markup(resize_keyboard=True)
 
 
 def student_confirm_kb(previous_step) -> InlineKeyboardMarkup:
     kb = InlineKeyboardBuilder()
-    kb.row(InlineKeyboardButton(text="Подтвердить", callback_data="student_confirm"))
-    kb.row(InlineKeyboardButton(text="Назад", callback_data=previous_step))
+    kb.row(InlineKeyboardButton(text="✅Подтвердить✅", callback_data="student_confirm"))
+    kb.row(InlineKeyboardButton(text="↩️Назад", callback_data=previous_step))
     return kb.as_markup(resize_keyboard=True)
 
 
 def back(previous_step) -> InlineKeyboardMarkup:
     kb = InlineKeyboardBuilder()
-    kb.row(InlineKeyboardButton(text="Назад", callback_data=previous_step))
+    kb.row(InlineKeyboardButton(text="↩️Назад", callback_data=previous_step))
     return kb.as_markup(resize_keyboard=True)
 
 
 def my_coach_kb(previous_step) -> InlineKeyboardMarkup:
     kb = InlineKeyboardBuilder()
     kb.row(InlineKeyboardButton(text="❌Убрать тренера❌", callback_data="delete_coach"),
-           InlineKeyboardButton(text="↩️Назад↩️", callback_data=previous_step))
+           InlineKeyboardButton(text="↩️Назад", callback_data=previous_step))
     return kb.as_markup(resize_keyboard=True)
 
 
 def delete_account_kb() -> InlineKeyboardMarkup:
     kb = InlineKeyboardBuilder()
     kb.row(InlineKeyboardButton(text="❌Удалить❌", callback_data="delete_account"))
-    kb.row(InlineKeyboardButton(text="Отмена", callback_data="del_cancel"))
+    kb.row(InlineKeyboardButton(text="✖️Отмена✖️", callback_data="del_cancel"))
+    return kb.as_markup(resize_keyboard=True)
+
+
+def task_notification_kb() -> InlineKeyboardMarkup:
+    kb = InlineKeyboardBuilder()
+    kb.row(InlineKeyboardButton(text="⏳В процессе⏳", callback_data="student_process_tasks"))
     return kb.as_markup(resize_keyboard=True)

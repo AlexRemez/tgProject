@@ -43,7 +43,7 @@ async def save_contact(message: Message, state: FSMContext, bot: Bot):
         await message.answer(text="<b>Номер сохранён!</b>", parse_mode="HTML", reply_markup=ReplyKeyboardRemove())
         phone_number = message.contact.phone_number
         flag = True
-    elif message.text == "Пропустить":
+    elif message.text.startswith("Пропустить"):
         phone_number = "Неизвестный"
         flag = True
     if flag:

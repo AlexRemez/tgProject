@@ -22,13 +22,15 @@ class ExerciseState(StatesGroup):
 
 @router_1.message(Command('list_drills'))
 async def show_drills(message: types.Message, bot: Bot, state: FSMContext):
+    await state.clear()
     keyboard = await list_ex_kb()
     await message.delete()
     await message.answer('Выберите номер упражнения!', reply_markup=keyboard)
 
 
 @router_1.callback_query(Text(text="list_drills"))
-async def show_drills(callback: types.CallbackQuery):
+async def show_drills(callback: types.CallbackQuery, state: FSMContext):
+    await state.clear()
     keyboard = await list_ex_kb()
     await callback.message.delete()
     await callback.message.answer('Выберите номер упражнения!', reply_markup=keyboard)
@@ -38,6 +40,7 @@ async def show_drills(callback: types.CallbackQuery):
 async def show_drill(callback: CallbackQuery, state: FSMContext):
     # await callback.message.delete()
     now_state = await state.get_state()
+    print(now_state)
     if now_state == Profile.confirm or now_state == Profile.student_confirm:
         await callback.message.delete()
         task_id = int(callback.data[1:])

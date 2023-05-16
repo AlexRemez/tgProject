@@ -10,5 +10,6 @@ def main_menu_kb(auth: bool) -> InlineKeyboardMarkup:
         profile_button = InlineKeyboardButton(text="🟡Зарегистрироваться", callback_data="auth")
     kb.row(profile_button,
            InlineKeyboardButton(text="🎱Список упражнений", callback_data="list_drills"))
+    kb.row(InlineKeyboardButton(text="🔥Бросить вызов🔥", callback_data="exam"))
     kb.row(InlineKeyboardButton(text="✖️Скрыть меню✖️", callback_data="hide_menu"))
     return kb.as_markup(resize_keyboard=True)
