@@ -1,12 +1,11 @@
 import datetime
 
-from sqlalchemy import Column, Integer, String, Boolean, BigInteger, exc, func, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, BigInteger, exc, func, ForeignKey, null, asc, desc
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import load_only, relationship, backref
+from sqlalchemy.orm import load_only, relationship, backref, selectinload, joinedload
 
 from .connect import async_db_session
 from sqlalchemy.sql import select, insert, update
-
 
 Base = declarative_base()
 
@@ -72,6 +71,7 @@ class ModelAdmin:
         try:
             async with async_db_session() as session:
                 results = await session.execute(query)
+                results = results.unique()
                 (result,) = results.one()
                 result: cls
                 return result
@@ -91,6 +91,7 @@ class ModelAdmin:
         try:
             async with async_db_session() as session:
                 results = await session.execute(query)
+                results = results.unique()
                 res = results.scalars()
                 return res.fetchall()
         except exc.NoResultFound:
@@ -114,6 +115,7 @@ class ModelAdmin:
 
         async with async_db_session() as session:
             result = await session.execute(query)
+            result = result.unique()
             res = result.scalars()
             return res.fetchall()
 
@@ -126,6 +128,18 @@ class ModelAdmin:
         except exc.NoResultFound:
             return ()
 
+    @classmethod
+    async def sort(cls, column, method="+"):
+        if method == "+":
+            query = select(cls).order_by(asc(column))
+        elif method == "-":
+            query = select(cls).order_by(desc(column))
+        async with async_db_session() as session:
+            results = await session.execute(query)
+            results = results.unique()
+            res = results.scalars()
+            return res.fetchall()
+
 
 class Exercises(Base, ModelAdmin):
     __tablename__ = 'exercises'
@@ -137,6 +151,70 @@ class Exercises(Base, ModelAdmin):
     rules = Column(String)
 
     exercises = relationship("Tasks", back_populates="exercise")
+    tags = relationship("ExerciseTag", back_populates="exercise", lazy="joined")
+
+    exercise_results = relationship("ExerciseResults", back_populates="exercise")
+
+    async def get_tags(self):
+        async with async_db_session() as session:
+            query = select(Exercises).where(Exercises.id == self.id).options(
+                selectinload(Exercises.tags).joinedload(ExerciseTag.tag)
+            )
+            result = await session.execute(query)
+            exercise = result.scalar_one()
+            tags = []
+            for obj in exercise.tags:
+                obj: ExerciseTag
+                tags.append(obj.tag)
+
+            return tags
+
+    async def get_level(self):
+        async with async_db_session() as session:
+            query = select(Exercises).where(Exercises.id == self.id).options(
+                selectinload(Exercises.tags).joinedload(ExerciseTag.tag)
+            )
+            result = await session.execute(query)
+            exercise = result.scalar_one()
+            for obj in exercise.tags:
+                obj: ExerciseTag
+                tag: str = obj.tag.tag_name
+                if tag.startswith("level"):
+                    return obj.tag
+            return None
+
+
+class Tags(Base, ModelAdmin):
+    __tablename__ = 'tags'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tag_name = Column(String, unique=True)
+
+    exercises = relationship("ExerciseTag", back_populates="tag")
+
+    async def get_exercises(self):
+        async with async_db_session() as session:
+            query = select(Tags).where(Tags.id == self.id).options(
+                selectinload(Tags.exercises).joinedload(ExerciseTag.exercise)
+            )
+            result = await session.execute(query)
+            tags = result.scalar_one()
+            exercises = []
+            for obj in tags.exercises:
+                obj: ExerciseTag
+                exercises.append(obj.exercise)
+
+            return exercises
+
+
+class ExerciseTag(Base, ModelAdmin):
+    __tablename__ = 'exercise-tag'
+
+    exercise_id = Column(Integer, ForeignKey("exercises.id"), primary_key=True)
+    tag_id = Column(Integer, ForeignKey("tags.id"), primary_key=True)
+
+    exercise = relationship('Exercises', back_populates='tags', lazy="joined")
+    tag = relationship('Tags', back_populates='exercises', lazy="joined")
 
 
 class Coaches(Base, ModelAdmin):
@@ -186,5 +264,36 @@ class Tasks(Base, ModelAdmin):
     student = relationship("Students", back_populates="tasks")
 
 
+class Athletes(Base, ModelAdmin):
+    __tablename__ = "athletes"
 
-    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tg_id = Column(BigInteger, nullable=False)
+    first_name = Column(String)
+    last_name = Column(String)
+    age = Column(String)
+    email = Column(String)
+    is_active = Column(Boolean, default=False)
+    points = Column(Integer, default=0)
+
+    results = relationship("ExerciseResults", back_populates="athlete", lazy="joined")
+
+
+class ExerciseResults(Base, ModelAdmin):
+    __tablename__ = "exercise_results"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    exam_status = Column(Boolean, nullable=False)
+    completed_status = Column(Boolean, default=False)
+
+    athlete_id = Column(ForeignKey("athletes.id"))
+    athlete = relationship("Athletes", back_populates="results", lazy="joined")  # lazy="joined" подгружает данные
+
+    exercise_id = Column(ForeignKey("exercises.id"))
+    exercise = relationship("Exercises", back_populates="exercise_results", lazy="joined")
+
+    results = Column(String(length=10))
+    conclusion = Column(String())
+    points = Column(Integer, default=0)
+

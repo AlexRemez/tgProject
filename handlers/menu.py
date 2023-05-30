@@ -9,6 +9,7 @@ from handlers.authorization import Auth
 from keyboards.for_auth import auth
 from keyboards.for_menu import main_menu_kb
 from keyboards.for_profile import coach_services, student_services
+from keyboards.for_start_bot import main_buttons_kb
 
 menu_router = Router()
 
@@ -25,7 +26,17 @@ async def main_menu(message: Message):
 
 
 @menu_router.callback_query(Text(text="main_menu"))
-async def main_menu(callback: CallbackQuery):
+async def main_menu(callback: CallbackQuery, state: FSMContext):
+
+    current_state = await state.get_state()
+    ban_states = [
+        Auth.athlete_first_name,
+        Auth.athlete_last_name,
+        Auth.athlete_email
+    ]
+    if current_state in ban_states:
+        await state.clear()
+
     id_tg = callback.from_user.id
     coach = await Coaches.get(tg_id=id_tg)
     student = await Students.get(tg_id=id_tg)

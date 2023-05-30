@@ -1,16 +1,19 @@
-from aiogram import Router, Bot
+from aiogram import Router, Bot, F
 from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove
 from aiogram.filters import Command, Text
 
-from db.models import Coaches, Students
+from db.models import Coaches, Students, Athletes
 
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
 
-from keyboards.for_auth import auth, telephone, status, confirm, coach_list
+from keyboards.for_auth import auth, telephone, status, confirm, coach_list, save_athlete_kb, athlete_notify
 from handlers.start_bot import make_start_message
+from keyboards.for_exam import start_exam
 from keyboards.for_menu import main_menu_kb
-from keyboards.for_start_bot import main_buttons_kb
+from keyboards.for_start_bot import main_buttons_kb, back_menu_kb
+
+import re
 
 auth_router = Router()
 
@@ -19,6 +22,10 @@ class Auth(StatesGroup):
     auth_state = State()
     choosing_coach = State()
     change_coach = State()
+    athlete_first_name = State()
+    athlete_last_name = State()
+    athlete_email = State()
+    delete_athlete = State()
 
 
 @auth_router.callback_query(Text(text="auth"))
@@ -182,3 +189,113 @@ async def save_coach(callback: CallbackQuery, bot: Bot, state: FSMContext):
     await callback.answer(text=f"Ваш новый тренер: {coach.first_name}!", show_alert=True)
     await state.clear()
 
+
+################################################################
+# Регистрация спортсмена для экзамена
+
+@auth_router.message(Auth.athlete_first_name, Text)
+async def first_name_handler(message: Message, state: FSMContext):
+    first_name = message.text.capitalize()
+    if first_name.isalpha():
+        await state.update_data(athlete_first_name=first_name)
+        await state.set_state(Auth.athlete_last_name)
+        await message.answer(
+            text="<b>Введите свою фамилию</b>"
+                 "\n\n<u>Пожалуйста вводите действительную информацию, ваши данные будут проверены!</u>",
+            reply_markup=back_menu_kb(text="Отмена")
+        )
+
+
+@auth_router.message(Auth.athlete_last_name, Text)
+async def last_name_handler(message: Message, state: FSMContext):
+    last_name = message.text.capitalize()
+    if last_name.isalpha():
+        await state.update_data(athlete_last_name=last_name)
+        await state.set_state(Auth.athlete_email)
+        await message.answer(
+            text="<b>Введите свою почту</b>"
+                 "\n<i>example@gmail.com</i>"
+                 "\n\n<u>Пожалуйста вводите действительную информацию, ваши данные будут проверены!</u>",
+            reply_markup=back_menu_kb(text="Отмена")
+        )
+
+
+@auth_router.message(Auth.athlete_email, Text)
+async def check_handler(message: Message, state: FSMContext):
+    email = message.text
+    pattern = r'^[\w\.-]+@[\w\.-]+\.\w+$'
+    match = re.match(pattern, email)
+    if match is not None:
+        await state.update_data(athlete_email=email)
+
+        data = await state.get_data()
+        first_name = data['athlete_first_name']
+        last_name = data['athlete_last_name']
+        email = data['athlete_email']
+
+        await message.answer(
+            text="<b>Проверьте данные</b>"
+                 f"\n\n<b>Имя:</b> {first_name}"
+                 f"\n<b>Фамилия:</b> {last_name}"
+                 f"\n<b>Почта:</b> {email}",
+            reply_markup=save_athlete_kb()
+        )
+
+
+@auth_router.callback_query(Auth.athlete_email, Text(text="save_athlete"))
+async def save_athlete(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    data = await state.get_data()
+    first_name = data['athlete_first_name']
+    last_name = data['athlete_last_name']
+    email = data['athlete_email']
+    tg_id = callback.from_user.id
+
+    await Athletes.create(
+        tg_id=tg_id,
+        first_name=first_name,
+        last_name=last_name,
+        email=email
+    )
+
+    await callback.answer("Заявка подана☑️ Ожидайте подтверждения⏳", show_alert=True)
+    await callback.message.edit_text(text="<b>⏳Ожидайте пока вашу заявку одобрят⏳</b>"
+                                          "\n<i>Вы можете пользоваться ботом во время ожидания🤖</i>")
+    await state.clear()
+    await bot.send_message(
+        chat_id=5691938305,
+        text="💬<b>Заявка на лидерборд</b>💬"
+             f"\n\n<b>Имя:</b> {first_name}"
+             f"\n<b>Фамилия:</b> {last_name}"
+             f"\n<b>Почта:</b> {email}",
+        reply_markup=athlete_notify(tg_id)
+    )
+
+
+@auth_router.callback_query(Text(startswith="athlete_active-"))
+async def athlete_active(callback: CallbackQuery, bot: Bot):
+    tg_id = callback.data.split("-")[1]
+    athlete = await Athletes.get(tg_id=int(tg_id))
+    await athlete.update(is_active=True)
+    await callback.message.delete()
+    await callback.answer(text="Данные спортмена сохранены✅")
+    await bot.send_message(chat_id=tg_id, text="<b>✅Ваша заявка одобрена✅</b>", reply_markup=start_exam())
+
+
+@auth_router.callback_query(Text(startswith="delete_athlete"))
+async def delete_athlete(callback: CallbackQuery, state: FSMContext):
+    tg_id = callback.data.split("-")[1]
+    await state.update_data(athlete_tg_id=int(tg_id))
+    athlete = await Athletes.get(tg_id=int(tg_id))
+    await athlete.delete()
+    await callback.message.edit_text(text="Опишите причину отказа📝")
+    await state.set_state(Auth.delete_athlete)
+
+
+@auth_router.message(Auth.delete_athlete, Text)
+async def rejection_reason_handler(message: Message, state: FSMContext, bot: Bot):
+    rejection_reason = message.text
+    text = f"<b>❌Заявка отклонена❌</b>" \
+           f"\n\n<i>{rejection_reason}</i>"
+    data = await state.get_data()
+    tg_id = data['athlete_tg_id']
+    await bot.send_message(chat_id=tg_id, text=text)

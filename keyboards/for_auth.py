@@ -43,3 +43,17 @@ async def coach_list() -> InlineKeyboardMarkup:
     kb.adjust(2)
     kb.row(InlineKeyboardButton(text="↩️Назад", callback_data="profile"))
     return kb.as_markup(resize_keyboard=True)
+
+
+def save_athlete_kb() -> InlineKeyboardMarkup:
+    kb = InlineKeyboardBuilder()
+    kb.row(InlineKeyboardButton(text="✅Подтвердить✅", callback_data="save_athlete"))
+    kb.row(InlineKeyboardButton(text="Отмена", callback_data="main_menu"))
+    return kb.as_markup(resize_keyboard=True)
+
+
+def athlete_notify(tg_id) -> InlineKeyboardMarkup:
+    kb = InlineKeyboardBuilder()
+    kb.row(InlineKeyboardButton(text="✅Подтвердить✅", callback_data="athlete_active-" + str(tg_id)))
+    kb.row(InlineKeyboardButton(text="❌Отказать❌", callback_data="delete_athlete-" + str(tg_id)))
+    return kb.as_markup(resize_keyboard=True)
